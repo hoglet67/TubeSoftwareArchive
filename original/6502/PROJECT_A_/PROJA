@@ -1,0 +1,777 @@
+﻿REM transcribed from a public display in the museum
+REM PROCmeminit is missing two keywords which
+REM the museum display’s Basic didn’t recognise
+REM so add OPENIN and OSCLI as appropriate.
+REM
+REM short test program:
+REM 7045 !mem%=&E3A010C0:mem%!4=&E3A02C0E:mem%!8=&E2811001:mem%!12=&E2422001:mem%!16=&EAFFFFFC:ENDPROC
+
+
+
+
+
+
+10 ram%=2048:REM sim76 >simtext
+20 ON ERROR PROCexit("")
+30 CLS:cycle%=0:hiw%=&80:!hiw%=ram%*4:*FX 229,1
+40 MODE0:rct%=hiw%+4:ict%=rct%+1:fct%=ict%+1:!rct%=0
+50 test%=0:pla%=0:trace%=1
+60 IF trace% VDU 28,0,31,79,24:PRINTTAB(0,24);
+70 
+80 REM The Project A Simulator
+90 
+100 RESTORE 5890:READ totstep%,ncont%
+110 DIM reg%(24),inss%(totstep%),inst%(totstep%),in%(totstep%,ncont%)
+120 DIM inst$(totstep%),mem% ram%*4,condmx%(7),nbit%(ncont%)
+130 
+140 PROCinit:PROCaluinit
+150 
+160 IF pla% PROCaluexp:PROCexpand:STOP
+170 
+180 PROCmeminit:PRINT
+190 
+200 const=2^32
+210 ireg%=0:seq%=0:bbus%=-1:abus%=-1:din%=0
+220 sctlreg%=0:areg%=0:oareg%=0:aregn%=0:oldaluctlsz%=0
+230 alua%=0:alub%=0:pipeb%=0:data%=&33003
+240 doutlat%=0:npsr%=&C000003:pipea%=0:newinst%=0:oldseq%=0
+250 pipeaval%=FALSE:pipebval%=FALSE:iregval%=FALSE
+260 bw%=0:pencmask%=0:rp%=0:wen%=0
+270 addex%=0:iregabt%=0:irq%=0:abort%=0:nmi%=0:reset%=0
+280 obw%=0:pipebabt%=0:dataabt%=0
+290 nmilatch%=0:achkx%=0:orp%=0:nlink%=0:nwb%=0
+300 trans%=0:psrbank%=0:intseq%=0:wr%=0:seqout%=1:rw%=1
+310 undef%=0:pipec%=0:oldmreq%=1:mreq%=1:oaregpc%=0
+320 resetlatch%=1:ooca%=0:oocd%=0:oca%=0:ocd%=0:bkpt%=&FFFFFFFF
+325 resetin%=0:fiqin%=0:irqin%=0:aregn2%=0:ldmfix%=0
+330 PROCidec
+340 PROCactl
+350 PROCbctl
+360 PROCwctlph1
+370 PROCaluctl
+380 PROCsctlph2
+390 PROCcond
+400 PROCdctl
+410 
+420 REPEAT
+430   IF ?rct%>0 ?rct%=?rct%-1
+440   IF ?ict%>1 ?ict%=?ict%-1
+450   IF ?fct%>1 ?fct%=?fct%-1
+460   PROCphase1
+470   PROCphase2
+480 UNTIL0
+490 
+500 DEF PROCphase1
+510 PROCaregph1
+520 PROCseqph1
+530 PROCinterruptph1a
+540 PROCaluctl
+550 PROCdinph1
+560 PROCpencph1
+570 PROCpsrph1
+580 PROCregph1
+590 PROCwctlph1
+600 PROCshift
+610 PROCsctlph1
+620 PROCalu
+630 PROCdout
+640 PROCincdecph1
+650 PROCmemory
+660 PROCinterruptph1b
+670 PROCskpph1
+680 PROCpipeph1
+690 PROCpipestatph1
+700 PROCinterruptph1c
+710 PROCbwph1
+730 ENDPROC
+740 
+770 DEF PROCphase2
+780 PROCwctlph2
+790 PROCseqph2
+800 abus%=0:bbus%=0:REM precharge
+810 PROCpipeph2
+820 PROCpipestatph2
+830 PROCregph2
+840 pbus%=0:PROCpsrph2
+850 PROCpencph2
+860 PROCdinph2
+870 PROCtracecontrol
+880 PROCaregph2
+890 PROCidec
+900 PROCinterruptph2
+910 PROCactl
+920 PROCbctl
+930 PROCbwph2
+940 PROCsctlph2
+950 PROCskpph2
+960 PROCdctl
+970 PROCcond
+990 ENDPROC
+1000 
+1010 DEF PROCcond
+1020 icond%=(ireg% AND &70000000)DIV2^28
+1030 IF ireg%<0 icond%=icond%+8
+1040 condmx%(2)=npsr%<0:condmx%(0)=(npsr% AND &40000000)<>0
+1050 condmx%(1)=(npsr% AND &20000000)<>0:condmx%(3)=(npsr% AND &10000000)<>0
+1060 condmx%(4)=condmx%(1) AND NOT condmx%(0)
+1070 condmx%(5)=condmx%(2)=condmx%(3)
+1080 condmx%(6)=condmx%(5) AND NOT condmx%(0)
+1090 condmx%(7)=TRUE
+1100 condf%=(condmx%(icond% DIV 2) EOR ((icond% AND 1) =0)) AND intseq%=0 AND undef%=0
+1110 ENDPROC
+1120 
+1130 DEF PROCregph1
+1140 IF ben% bbus%=reg%(FNreg(rb%,r%)) OR bbus%
+1150 IF aen% abus%=reg%(FNreg(ra%,r%)) OR abus%
+1160 ENDPROC
+1170 
+1180 DEF PROCregph2
+1190 IF wen% PROCassignreg(FNreg(w%,r%),alu%)
+1200 IF w15% PROCassignreg(15,inc%)
+1210 ENDPROC
+1220 
+1230 DEF PROCassignreg(n%,s%)
+1240 IF n%<>15 reg%(n%)=s%:ENDPROC
+1250 reg%(15)=s% AND &03FFFFFC
+1260 ENDPROC
+1270 
+1280 DEF FNreg(n%,r%)
+1290 IF r%=1 IF n%>9  IF n%<15 =n%+6 :REM  NMI
+1300 IF r%=2 IF n%>12 IF n%<15 =n%+8 :REM  IRQ
+1310 IF r%=3 IF n%>12 IF n%<15 =n%+10:REM  SVC
+1320 =n%
+1330 
+1340 DEF PROCalu
+1350 LOCAL a%,b%
+1360 IF aluena% alua%=abus%
+1370 IF aluenb% alub%=shout%
+1380 alucarry%(2)=cin%
+1390 IF alufs%=20 alu%=alua% AND alub%
+1400 IF alufs%=24 alu%=alua% AND NOT alub%
+1410 IF alufs%=25 alu%=alua% EOR alub%
+1420 IF alufs%=9  alu%=FNadd(alua%,NOT alub%,alucarry%(alucs%))
+1430 IF alufs%=6  alu%=FNadd(alua%,alub%,alucarry%(alucs%))
+1440 IF alufs%=38 alu%=FNadd(NOT alua%,alub%,alucarry%(alucs%))
+1450 IF alufs%=16 alu%=alua%
+1460 IF alufs%=17 alu%=alua% OR alub%
+1470 IF alufs%=21 alu%=alub%
+1480 IF alufs%=26 alu%=NOT alub%
+1490 IF alu%=0 zout%=1 ELSE zout%=0
+1500 IF alu% AND &80000000 nout%=1 ELSE nout%=0
+1510 ENDPROC
+1520 
+1530 DEF FNadd(a%,b%,c%)
+1540 LOCAL a,b,z,z%
+1550 a=a%:IFa%<0 a=a+const
+1560 b=b%:IFb%<0 b=b+const
+1570 z=a+b+c%:z%=a%+b%+c%
+1580 cout%=0:vout%=0
+1590 IF z>=const cout%=1
+1600 IF a%>=0 IF b%>=0 IF z%<0 vout%=1
+1610 IF a%<0 IF b%<0 IF z%>0 vout%=1
+1620 =z%
+1630 
+1640 DEF PROCshift
+1650 LOCAL n%,m%,o%
+1660 n%=shiftop% AND &1F
+1670 o%=shiftop% AND &60
+1680 shcout%=cin%:b0%=bbus% AND 1:b31%=bbus%<0
+1690 IF shiftop%=0 shout%=bbus%:ENDPROC
+1700 IF n%=0 IF o%=&60 PROCrrc:ENDPROC
+1710 IF o%=0 PROClsl:ENDPROC
+1720 IF o%=&20 PROClsr:ENDPROC
+1730 IF o%=&40 PROCasr:ENDPROC
+1740 PROCrot:ENDPROC
+1750 
+1760 DEF PROClsl
+1770 m%=2^(31-n%)
+1780 shout%=((m%-1) AND bbus%)*2^n%
+1790 IF bbus% AND m% shout%=shout% OR &80000000
+1800 shcout%=bbus% AND (m%+m%)
+1810 ENDPROC
+1820 
+1830 DEF PROClsr
+1840 IF n%=0 shout%=0:shcout%=bbus%<0:ENDPROC
+1850 LOCAL b
+1860 b=bbus%:IF b<0 b=b+const
+1870 shout%=b/(2^n%)
+1880 shcout%=bbus% AND 2^(n%-1)
+1890 ENDPROC
+1900 
+1910 DEF PROCasr
+1920 IF n%=0 IF bbus%<0 shout%=-1:shcout%=1:ENDPROC
+1930 IF n%=0 IF bbus%>0 shout%=0:shcout%=0:ENDPROC
+1940 bb%=bbus%
+1950 IF bb%<0 FOR i%=0 TO n%-1:bb%=bb% AND NOT(2^i%):NEXT
+1960 shout%=bb%/(2^n%)
+1970 shcout%=bbus% AND 2^(n%-1)
+1980 ENDPROC
+1990 
+2000 DEF PROCrot
+2010 LOCAL s%:n%=32-n%
+2020 PROClsl:s%=shout%:n%=32-n%
+2030 PROClsr:shout%=shout% OR s%
+2040 ENDPROC
+2050 
+2060 DEF PROCrrc
+2070 n%=1:PROClsr
+2080 IF cin% shout%=shout% OR &80000000
+2090 ENDPROC
+2100 
+2110 DEF PROCdinph1
+2120 IF dinen0% bbus%=din% AND &FF
+2130 IF dinen1% bbus%=bbus% OR din% AND &F00
+2140 IF dinen2% bbus%=bbus% OR din% AND &F000
+2150 IF dinen3% bbus%=bbus% OR din% AND &FF0000
+2160 IF dinen4% bbus%=bbus% OR din% AND &FF000000
+2170 ENDPROC
+2180 
+2190 DEF PROCdinph2
+2200 IF dinin% din%=data%
+2210 IF newinst% din%=ireg%
+2220 ENDPROC
+2230 
+2240 DEF PROCpencph2
+2250 IF newinst% pencmask%=&FFFF ELSE pencmask%=pencmask% AND NOT( 2^rp% )
+2260 pencz%=(ireg% AND pencmask%)=0
+2270 ENDPROC
+2280 
+2290 DEF PROCpencph1
+2300 rp%=FNpencprty:aen%=pencen%=0:IF aen% ENDPROC
+2310 IF pencen%=1 abus%=3:ENDPROC
+2320 IF pencen%=3 abus%=4*FNpenccnt OR 3:ENDPROC
+2330 IF ireg% AND 2^23 abus%=3:ENDPROC
+2340 abus%=4*FNpenccnt:IF ireg% AND 2^24 abus%=abus% OR 3
+2350 ENDPROC
+2360 
+2370 DEF FNpencprty
+2380 LOCAL l%,f%:f%=15
+2390 l%=ireg% AND pencmask%
+2400 FOR i%=15 TO 0 STEP -1
+2410   IF 2^i% AND l% f%=i%
+2420 NEXT
+2430 =f%
+2440 
+2450 DEF FNpenccnt
+2460 LOCAL i%,c%,j%
+2470 c%=0:j%=1
+2480 FOR i%=0 TO 15
+2490   IF ireg% AND j% c%=c%+1
+2500   j%=j%+j%:NEXT
+2510 =c%-1
+2520 
+2530 REM  psr% has r0,r1 in bits 0,1
+2540 REM     and N,Z,C,V,I,F in bits 31..26
+2550 
+2560 DEF PROCpsrph1
+2570 psr%=npsr%
+2580 IF psren% OR bpc% AND ben% pbus%=npsr% AND &FC000003:bbus%=bbus% OR pbus%
+2590 scc%=(ireg% AND 2^20)<>0
+2600 psrwen%=(ireg% AND 2^22)<>0
+2610 IF banken% IF NOT abortinst% psr%=npsr% AND &FFFFFFFC OR (psrbank% OR psrbank%=0 AND 3):psr%=psr% OR (2 OR psrbank%)*2^26
+2620 IF psrw% AND psrwen% AND ben% r%=0 ELSE r%=psr% AND 3
+2630 cin%=(psr% AND &20000000) DIV &20000000
+2640 ENDPROC
+2650 
+2660 DEF PROCpsrph2
+2670 npsr%=psr%:IF abortinst% ENDPROC
+2680 IF wpc% IF aluproc% AND scc% OR psrw% AND psrwen% npsr%=FNpsr:ENDPROC
+2690 IF aluproc%=0 OR NOT scc% ENDPROC
+2700 IF nout% npsr%=psr% OR &80000000 ELSE npsr%=psr% AND &7FFFFFFF
+2710 IF zout% npsr%=npsr% OR &40000000 ELSE npsr%=npsr% AND &BFFFFFFF
+2720 IF aluarith%=0 npsr%=FNshpsr:ENDPROC
+2730 IF cout% npsr%=npsr% OR &20000000 ELSE npsr%=npsr% AND &DFFFFFFF
+2740 IF vout% npsr%=npsr% OR &10000000 ELSE npsr%=npsr% AND &EFFFFFFF
+2750 ENDPROC
+2760 
+2770 DEF FNpsr
+2780 IF (psr%AND3)=0 =alu% AND &F0000000 OR psr% AND &C000000 ELSE =alu%
+2790 
+2800 DEF FNshpsr
+2810 IF sctlc% THEN = npsr% OR &20000000 ELSE =npsr% AND &DFFFFFFF
+2820 
+2830 DEF PROCdout
+2840 LOCAL b%
+2850 doutlat%=bbus%
+2860 doutb%=doutlat% AND &FF
+2870 IF bw% b%=doutb%*&808080:dout%=doutb%+b%+b% ELSE dout%=doutlat%
+2880 IF mreq% AND rw%=0 data%=dout%
+2890 ENDPROC
+2900 
+2910 DEF PROCincdecph1
+2920 inc%=(areg% AND &3FFFFFC) + 4
+2930 ENDPROC
+2940 
+2950 DEF PROCaregph1
+2960 tareg%=areg% AND 3
+2970 ENDPROC
+2980 
+2990 DEF PROCaregph2
+3000 oareg%=tareg%
+3010 achkx%=FALSE
+3020 IF aregs%=0 areg%=aregn%*4
+3030 IF aregs%=1 areg%=alu% AND &3FFFFFF:achkx%=alu% AND &FC000000
+3040 IF aregs%=2 areg%=inc% OR areg% AND 3
+3050 IF aregs%=3 areg%=reg%(15)
+3060 ENDPROC
+3070 
+3080 DEF PROCpipeph1
+3090 IF newinst% pipec%=pipeb%
+3100 ENDPROC
+3110 
+3120 DEF PROCpipeph2
+3130 ireg%=pipec%
+3140 IF pipeal% pipea%=data%
+3150 IF pipebl% OR newinst% pipeb%=pipea%
+3160 ENDPROC
+3170 
+3180 DEF PROCpipestatph1
+3190 IF newinst% iregval%=pipebval% AND pcchange%=0:iregabt%=pipebabt%
+3200 IF reset% iregval%=0
+3210 ENDPROC
+3220 
+3230 DEF PROCpipestatph2
+3240 IF pipeal% OR pcchange% pipeaval%=(pcchange%=0 OR reset%):pipeaabt%=abortlatch%
+3250 IF pipebl% OR newinst% OR pcchange% pipebval%=pipeaval%:pipebabt%=pipeaabt%
+3260 ENDPROC
+3270 
+3280 DEF PROCaluctl
+3290 aluop%=(ireg% AND &1E00000) DIV 2^20 + 32*aluctls% + ldmfix%
+3300 i%=0
+3310 REPEAT i%=i%+1
+3320 UNTIL (aluop% AND alss%(i%) EOR alst%(i%))=0
+3330 alufs%=alupla%(1,i%)
+3340 alucs%=alupla%(2,i%)
+3350 aluproc%=alupla%(3,i%)
+3360 aluarith%=alupla%(4,i%)
+3370 alures%=alupla%(5,i%)
+3390 IF oldaluctlsz% aluena%=TRUE ELSE aluena%=aluac%
+3400 oldaluctlsz%=aluctls%=0
+3410 ENDPROC
+3420 
+3430 REM ALUctl PLA
+3440 
+3450 DATA 000x0xxx, 38,0,0,0,1
+3460 DATA 000x1xxx,  6,3,0,0,1
+3470 DATA 001xxxxx,  6,0,0,0,1
+3480 DATA 0100xxxx, 16,0,0,0,1
+3490 DATA 01010xxx,  9,3,0,0,1
+3500 DATA 01011xxx,  6,0,0,0,1
+3510 DATA 011xxxx0, 21,0,0,0,1
+3515 DATA 011xxxx1, 16,0,0,0,1
+3520 DATA 10000xxx, 38,3,0,0,1
+3530 DATA 10001xxx, 21,0,0,0,1
+3540 DATA 10010xxx, 38,0,0,0,1
+3550 DATA 10011xxx,  6,3,0,0,1
+3560 DATA 101x0xxx,  9,3,0,0,1
+3570 DATA 101x1xxx,  6,0,0,0,1
+3580 DATA 110xxxxx, 38,0,0,0,1
+3590 DATA 1110000x, 20,0,1,0,1
+3600 DATA 1110001x, 25,0,1,0,1
+3610 DATA 1110010x,  9,3,1,1,1
+3620 DATA 1110011x, 38,3,1,1,1
+3630 DATA 1110100x,  6,0,1,1,1
+3640 DATA 1110101x,  6,2,1,1,1
+3650 DATA 1110110x,  9,2,1,1,1
+3660 DATA 1110111x, 38,2,1,1,1
+3670 DATA 1111000x, 20,0,1,0,0
+3680 DATA 1111001x, 25,0,1,0,0
+3690 DATA 1111010x,  9,3,1,1,0
+3700 DATA 1111011x,  6,0,1,1,0
+3710 DATA 1111100x, 17,0,1,0,1
+3720 DATA 1111101x, 21,0,1,0,1
+3730 DATA 1111110x, 24,0,1,0,1
+3740 DATA 1111111x, 26,0,1,0,1
+3750 DATA 6,2,1,1,1
+3760 
+3770 DEF PROCaluinit
+3780 RESTORE 3440:DIM alss%(31),alst%(31),alupla%(5,31),alucarry%(3),alu$(31),nalu%(5)
+3790 FOR i%=1 TO 31
+3800   READ alu$(i%)
+3810   FOR j%=1 TO 5:READ alupla%(j%,i%):NEXT
+3820   k%=1:FOR j%=8 TO 1 STEP -1
+3830     i$=MID$(alu$(i%),j%,1):IF i$<>"x" alss%(i%)=alss%(i%)+k%
+3840     IF i$="1" alst%(i%)=alst%(i%)+k%
+3850     k%=k%+k%:NEXT:NEXT:alucarry%(3)=1
+3860 FOR j%=1 TO 5:READ nalu%(j%):NEXT
+3870 ENDPROC
+3880 
+3890 DEF PROCaluexp
+3900 FORi%=1 TO 31:PRINT' MID$(alu$(i%),1,3)"  "MID$(alu$(i%),4,4)"  ";
+3905   PRINT MID$(alu$(i%),8,1)" : ";
+3910   FOR j%=1 TO 5:PRINT" ";:FOR k%=1 TO nalu%(j%)
+3920       PRINT;alupla%(j%,i%)DIV2^(nalu%(j%)-k%)MOD2;
+3930     NEXT:NEXT:NEXT:PRINT''
+3940 ENDPROC
+3950 
+3960 DEF PROCactl
+3970 IF abctls%>=2 ra%=15:ENDPROC
+3980 IF abctls%=1 ra%=(ireg% AND &F00) DIV 256:ENDPROC
+3990 ra%=(ireg% AND &F0000) DIV 65536
+4000 ENDPROC
+4010 
+4020 DEF PROCbctl
+4030 IF abctls%=4 rb%=14
+4040 IF abctls%=3 rb%=orp%
+4050 IF abctls%=2 rb%=(ireg% AND &F0000) DIV 65536
+4060 IF abctls%=1 rb%=(ireg% AND &F000) DIV 2^12
+4070 IF abctls%=0 rb%=ireg% AND &F
+4080 bpc%=rb%=15
+4090 ENDPROC
+4100 
+4110 DEF PROCwctlph1
+4120 oorp%=orp%
+4130 IF wctls%=3 w%=14
+4140 IF wctls%=2 w%=ooorp%:IF ldmfix% w%=(ireg% AND &F0000) DIV 65536
+4150 IF wctls%=1 w%=(ireg% AND &F000) DIV 2^12
+4160 IF wctls%=0 w%=(ireg% AND &F0000) DIV 65536
+4170 wpc%=w%=15
+4180 ENDPROC
+4190 
+4200 DEF PROCwctlph2
+4210 orp%=rp%
+4220 ooorp%=oorp%
+4230 ENDPROC
+4240 
+4250 DEF PROCsctlph1
+4260 IF sctls%=7 sctlreg%=abus% AND &FF
+4270 sctlc%=shcout%
+4280 IF sctls%<>0 ENDPROC
+4290 IF shop%=0 IF sctlreg%=32 sctlc%=b0%
+4300 IF shop%=0 IF sctlreg%>32 sctlc%=0
+4310 IF shop%=&20 IF sctlreg%>32 sctlc%=0
+4320 IF shop%=&60 IF (sctlreg% AND &1F)=0 IF sctlreg%<>0 sctlc%=b31%
+4330 ENDPROC
+4340 
+4350 DEF PROCsctlph2
+4360 IF sctls%=5shiftop%=2:ENDPROC
+4370 IF sctls%=4 shiftop%=0:ENDPROC
+4380 IF sctls%=3 shiftop%=FNshdata:ENDPROC
+4390 IF sctls%=2 shiftop%=FNshimm(ireg% AND &F00):ENDPROC
+4400 IF sctls%=1 shiftop%=(ireg% AND &F80) DIV 128 OR ireg% AND &60:ENDPROC
+4410 shop%=ireg% AND &60
+4420 IF sctlreg%=0 shiftop%=0:ENDPROC
+4430 IF sctlreg%<32 shiftop%=shop% OR sctlreg%:ENDPROC
+4440 IF shop%=0:shiftop%=&20:ENDPROC
+4450 IF shop%<>&60 shiftop%=shop%
+4460 IF shop%=&60 shiftop%=&60 OR sctlreg% AND &1F
+4470 IF shiftop%=&60 shiftop%=0
+4480 ENDPROC
+4490 
+4500 DEF FNshdata
+4510 IF oareg%=0 =0 ELSE =&60 + 8*oareg%
+4520 
+4530 DEF FNshimm(m%)
+4540 IF m%=0 =0 ELSE =m% DIV 128 OR &60 
+4550 
+4560 DEF PROCdctl
+4570 LOCAL t%:t%=obw%=0 AND dctls%=0 AND ben%=0 AND psren%=0
+4580 dinen0%=t%:dinen1%=t%:dinen2%=t%:dinen3%=t%:dinen4%=t%
+4590 IF ben% OR psren% ENDPROC
+4600 IF dctls%=3 dinen0%=TRUE:ENDPROC
+4610 IF dctls%=2 dinen0%=TRUE:dinen1%=TRUE:ENDPROC
+4620 IF dctls%=1 dinen0%=TRUE:dinen1%=TRUE:dinen2%=TRUE:dinen3%=TRUE:ENDPROC
+4630 IF oareg%=0 dinen0%=TRUE
+4640 IF oareg%=1 dinen1%=TRUE:dinen2%=TRUE
+4650 IF oareg%=2 dinen3%=TRUE
+4660 IF oareg%=3 dinen4%=TRUE
+4670 ENDPROC
+4680 
+4690 DEF PROCbwph1
+4700 obw%=bw%
+4710 ENDPROC
+4720 
+4730 DEF PROCbwph2
+4740 IF bws%=0 bw%=0:ENDPROC
+4750 bw%=ireg% AND 2^22
+4760 ENDPROC
+4770 
+4780 DEF PROCseqph1
+4790 IF seqs%=1 seq%=oldseq%+1
+4800 IF seqs%=0 seq%=0
+4810 IF seqs%=2 IF NOT pencz% seq%=2
+4820 IF seqs%=2 IF pencz% seq%=3
+4830 IF seqs%=3 IF NOT pencz% seq%=1
+4840 IF seqs%=3 IF pencz% seq%=0
+4850 IF condf% IF oldseq%=0 seq%=0:abortinst%=TRUE ELSE abortinst%=FALSE
+4860 newinst%=seq%=0
+4870 ENDPROC
+4880 
+4890 DEF PROCseqph2
+4900 oldseq%=seq%
+4910 ENDPROC
+4920 
+4930 DEF PROCskpph1
+4940 link%=nlink%:wb%=nwb%
+4950 wen%=skpwen% AND NOT dataabt%:aregs%=skparegs% AND 3:mreq%=skparegs%<6
+4960 IF skparegs%=5 IF pencz% mreq%=0
+4970 IF (skparegs% AND 6)=4 aregs%=2:IF pencz% aregs%=3
+4980 IF skpwen%=2 wen%=owb% AND NOT wpc%
+4990 IF skpwen%=3 wen%=olink%
+5000 IF skpwen%=4 wen%=(owb% OR NOT olink%) AND NOT dataabt%
+5010 IF skpwen%=5 wen%=alures%
+5020 IF skpwen%=6 wen%=(ooswen0% AND NOT wpc%) OR NOT dataabt%
+5030 pcchange%=wpc% AND wen%
+5040 IF pcchange% w15%=FALSE ELSE w15%=skpw15%
+5050 IF pcchange% IF aregs%=3 OR skparegs%=2 aregs%=1
+5060 IF abortinst% wen%=FALSE:aregs%=2:w15%=TRUE:mreq%=1:pcchange%=0
+5070 seqout%=aregs%=2 OR (aregs%=3) AND oaregpc%:oswen0%=skpwen% AND 1
+5080 ENDPROC
+5090 
+5100 DEF PROCskpph2
+5110 bank%=psr% AND 3:trans%=bank%=0
+5120 nwb%=ireg% AND &200000
+5130 nlink%=(ireg% AND 2^24)<>0
+5140 IF skpwen%=4 IF nwb% AND NOT nlink% trans%=1
+5150 owb%=wb%:olink%=link%:oaregpc%=aregs%=3:oldmreq%=mreq%:ooswen0%=oswen0%
+5160 ENDPROC
+5170 
+5180 DEF PROCinterruptph1a
+5190 ldmfix%=dataabt% AND newinst% AND 1
+5200 reset%=resetin%
+5204 resetin%=INKEY(-52) OR (?rct%=2)
+5210 resetstart%=resetlatch% AND reset%=0
+5220 ENDPROC
+5230 
+5240 DEF PROCinterruptph1b
+5250 IF reset% resetlatch%=TRUE
+5253 irq%=irqin% AND ((psr% AND 2^27)=0)
+5260 irqin%=(INKEY(-38) OR ((?ict%<3) AND (?ict%>0)))
+5265 fiq%=fiqin% AND ((psr% AND 2^26)=0)
+5270 fiqin%=(INKEY(-86) OR ((?fct%<3) AND (?fct%>0)))
+5280 abortlatch%=abort%:aregn%=aregn2%
+5290 IF opc%=0 IF abort% OR addex% dataabt%=TRUE
+5300 ENDPROC
+5310 
+5320 DEF PROCinterruptph1c
+5330 IF newinst% intseq%=iregabt% OR irq% OR fiq% OR dataabt% OR addex% OR resetstart%
+5340 ENDPROC
+5350 
+5360 DEF PROCinterruptph2
+5370 IF undef% aregn2%=1 ELSE aregn2%=2
+5380 IF iregabt% aregn2%=3
+5390 IF irq% aregn2%=6
+5400 IF fiq% aregn2%=7
+5410 IF dataabt% aregn2%=4
+5420 IF addex% aregn2%=5
+5430 IF resetstart% aregn2%=0
+5440 IF achkx% IF mreq% IF opc%=0 addex%=TRUE
+5450 IF irq% psrbank%=2 ELSE psrbank%=0
+5460 IF fiq% psrbank%=1
+5470 IF dataabt% OR addex% psrbank%=0
+5480 IF resetstart% psrbank%=3:dataabt%=0:addex%=0:resetlatch%=0
+5490 IF newinst% AND iregval% dataabt%=0:addex%=0
+5500 IF addex% rw%=1 ELSE rw%=rws%
+5510 ENDPROC
+5520 
+5530 DEF PROCidec
+5540 PROCinst
+5550 ben%=1-in%(i%,15):skpwen%=FNrev(in%(i%,9),3)
+5560 abctls%=FNrev(in%(i%,13),3):wctls%=FNrev(in%(i%,12),2)
+5565 sctls%=(in%(i%,21)AND3)*2 + (in%(i%,21)AND4)DIV4
+5570 aluac%=in%(i%,20):aluenb%=in%(i%,18):banken%=in%(i%,17)
+5580 pencen%=in%(i%,3):psren%=in%(i%,14):psrw%=in%(i%,16)
+5590 skpw15%=in%(i%,8):aluctls%=in%(i%,19):dinin%=in%(i%,22)
+5600 bws%=in%(i%,2):skparegs%=in%(i%,7) 
+5610 pipeal%=in%(i%,11):pipebl%=in%(i%,10)
+5620 rws%=in%(i%,5):dctls%=in%(i%,1)
+5630 seqs%=FNrev(in%(i%,4),2):undef%=in%(i%,6)
+5640 opc%=pipeal%
+5650 ENDPROC
+5651 
+5652 DEF FNrev(a%,b%)
+5653 LOCAL n%,z%:z%=0
+5654 FOR n%=0 TO b%-1:z%=z%*2:IF a% AND 2^n% z%=z%+1
+5655 NEXT: =z%
+5660 
+5670 DEF PROCinst
+5680 LOCAL mask%:mask%=0
+5690 IF iregval% mask%=2^8
+5700 IF intseq% mask%=mask% OR 2^9
+5710 mask%=mask% OR ((pipec% AND &F000000) DIV 2^20) OR((pipec% AND &100000) DIV 2^17) OR ((pipec% AND &10) DIV 4) +seq%
+5720 i%=0:REPEAT i%=i%+1
+5730 UNTIL(mask% AND inss%(i%) EOR inst%(i%))=0
+5740 ENDPROC
+5750 
+5760 DEF PROCinit
+5770 RESTORE 5920
+5780 FOR i%=1 TO totstep%:READ inst$(i%)
+5790   FOR j%=1 TO ncont%:READ in%(i%,j%):NEXT
+5800   k%=1:FOR j%=10 TO 1 STEP -1
+5810     i$=MID$(inst$(i%),j%,1):IFi$<>"x"inss%(i%)=inss%(i%)+k%
+5820     IFi$="1"inst%(i%)=inst%(i%)+k%
+5830     k%=k%+k%:NEXT:NEXT
+5840 FOR j%=1 TO ncont%:READ nbit%(j%):NEXT
+5850 DIM trace$(2):trace$(0)="Continuous"
+5860 trace$(1)="Single cycle":trace$(2)="single Instruction"
+5870 ENDPROC
+5880 
+5890 DATA 42,22
+5900 
+5910 
+5920 REM cancelled instruction
+5930 DATA x0xxxxxxxx,3,0,1,0,1,0,2,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0
+5940 REM R+R->R
+5950 DATA 01000xx0xx,0,0,0,0,1,0,2,1,5,1,1,2,0,0,0,0,0,1,7,1,4,0
+5960 REM R+R(Rs)->R
+5970 DATA 01000xx1x0,3,0,0,2,1,0,6,1,0,0,1,0,4,0,1,0,0,1,0,1,7,0
+5980 DATA 01000xx1x1,0,0,0,0,1,0,3,0,5,1,0,2,0,0,0,0,0,1,7,1,0,0
+5990 REM R+#->R
+6000 DATA 01001xxxxx,3,0,0,0,1,0,2,1,5,1,1,2,0,0,1,0,0,1,7,1,1,0
+6010 REM LDR off
+6020 DATA 01010x1x00,2,0,0,2,1,0,1,1,0,0,1,0,0,0,1,0,0,1,2,1,2,0
+6030 DATA 01010x1x01,0,1,0,2,1,0,7,0,1,0,0,0,0,0,1,0,0,0,5,1,2,1
+6040 DATA 01010x1x1x,0,0,1,0,1,0,3,0,4,1,0,2,0,0,1,0,0,1,3,0,5,0
+6050 REM STR off
+6060 DATA 01010x0xx0,2,0,0,2,1,0,1,1,0,0,1,0,0,0,1,0,0,1,2,1,2,0
+6070 DATA 01010x0xx1,0,1,1,0,0,0,3,0,1,1,0,0,4,0,0,0,0,0,5,0,0,0
+6080 REM LDR Rm
+6090 DATA 01011x1000,0,0,0,2,1,0,1,1,0,0,1,0,0,0,0,0,0,1,2,1,4,0
+6100 DATA 01011x1001,0,1,0,2,1,0,7,0,1,0,0,0,0,0,0,0,0,1,5,1,4,1
+6110 DATA 01011x101x,0,0,1,0,1,0,3,0,4,1,0,2,0,0,1,0,0,1,3,0,5,0
+6120 REM STR Rm
+6130 DATA 01011x00x0,0,0,0,2,1,0,1,1,0,0,1,0,0,0,0,0,0,1,2,1,4,0
+6140 DATA 01011x00x1,0,1,1,0,0,0,3,0,1,1,0,0,4,0,0,0,0,0,5,0,0,0
+6150 REM LDR Rm(Rs)
+6160 DATA 01011xx100,3,0,0,2,1,0,6,1,0,0,1,0,4,0,1,0,0,1,0,1,7,0
+6170 DATA 01011x1101,0,0,0,2,1,0,1,0,0,0,0,0,0,0,0,0,0,1,2,1,0,0
+6180 DATA 01011x1110,0,1,0,2,1,0,7,0,1,0,0,0,0,0,0,0,0,1,5,1,4,1
+6190 DATA 01011x1111,0,0,1,0,1,0,3,0,4,1,0,2,0,0,1,0,0,1,3,0,5,0
+6200 REM STR Rm(Rs)
+6210 DATA 01011x0101,0,0,0,2,1,0,1,0,0,0,0,0,0,0,0,0,0,1,2,1,4,0
+6220 DATA 01011x011x,0,1,1,0,0,0,3,0,1,1,0,0,4,0,0,0,0,0,5,0,0,0
+6230 REM LDM
+6240 DATA 01100x1x00,0,0,2,2,1,0,1,1,0,0,1,0,2,0,0,0,0,1,4,1,2,0
+6250 DATA 01100x1x01,0,0,3,1,1,0,4,0,2,0,0,0,2,0,0,0,0,1,0,1,2,1
+6260 DATA 01100x1x10,0,0,0,1,1,0,5,0,4,0,0,1,0,0,1,0,0,1,3,0,2,1
+6270 DATA 01100x1x11,0,0,1,0,1,0,3,0,3,1,0,1,0,0,1,1,0,1,3,0,2,0
+6280 REM STM
+6290 DATA 01100x0xx0,0,0,2,2,1,0,1,1,0,0,1,0,2,0,0,0,0,1,4,1,2,0
+6300 DATA 01100x0xx1,0,0,3,3,0,0,4,0,2,0,0,0,6,0,0,1,0,0,0,1,2,0
+6310 REM BR
+6320 DATA 01101xxx00,1,0,0,2,1,0,1,0,0,1,1,0,2,0,1,0,0,1,1,1,6,0
+6330 DATA 01101xxx01,3,0,1,2,1,0,2,1,6,1,1,3,0,1,1,0,0,1,1,0,2,0
+6340 DATA 01101xxx1x,0,0,1,0,1,0,2,1,6,1,1,3,1,0,0,0,0,1,6,1,2,0
+6350 REM SWI
+6360 DATA 011111xx00,3,0,0,2,1,0,0,0,4,1,1,3,2,1,1,0,1,1,1,1,2,0
+6370 DATA 011111xx01,0,0,1,2,1,0,2,1,4,1,1,3,1,0,0,0,0,1,6,1,2,0
+6380 DATA 011111xx1x,3,0,1,0,1,0,2,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0
+6390 REM UNDEF type 1
+6400 DATA 01110xxx00,3,0,0,2,1,1,0,0,4,1,1,3,2,1,1,0,1,1,1,1,2,0
+6410 DATA 01110xxx01,0,0,1,2,1,1,2,1,4,1,1,3,1,0,0,0,0,1,6,1,2,0
+6420 DATA 01110xxx1x,3,0,1,0,1,1,2,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0
+6430 REM UNDEF type 2
+6440 DATA 011110xx00,3,0,0,2,1,1,0,0,4,1,1,3,2,1,1,0,1,1,1,1,2,0
+6450 DATA 011110xx01,0,0,1,2,1,1,2,1,4,1,1,3,1,0,0,0,0,1,6,1,2,0
+6460 DATA 011110xx1x,3,0,1,0,1,1,2,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0
+6470 REM Interrupt
+6480 DATA 11xxxxxx00,3,0,0,2,1,0,0,0,4,1,1,3,2,1,1,0,1,1,1,1,2,0
+6490 DATA 11xxxxxx01,0,0,1,2,1,0,2,1,4,1,1,3,1,0,0,0,0,1,6,1,2,0
+6500 DATA 11xxxxxx1x,3,0,1,0,1,0,2,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0
+6510 REM number of bits per control
+6520 DATA            2,1,2,2,1,1,3,1,3,1,1,2,3,1,1,1,1,1,3,1,3,1
+6530 
+6640 DEF PROCtest(ph1%,ph2%)
+6650 PRINT"'"RIGHT$(STR$~(areg%+&10000000),7)"','";
+6660 PROCout(rw%):PROCout(mreq%):PROCout(opc%):PROCbout(npsr%,1,0)
+6670 PROCout(trans%):PROCout(fiq%):PROCout(irq%)
+6680 PROCout(abort%):PROCout(reset%)
+6760 PRINT"','1001','";
+6770 PROCout(seqout%)
+6780 PRINT"'"RIGHT$("00000000"+STR$~data%,8)"')"
+6790 ENDPROC
+6800 
+6840 DEF PROCmemory
+6850 abort%=0
+6860 IF oldmreq%=0 ENDPROC
+6870 IFareg%>&1FFFF OR areg%>!hiw% AND areg%<!hiw%+&400 abort%=TRUE:ENDPROC ELSE abort%=FALSE
+6880 LOCAL mask%,i%,add%:i%=areg% AND 3:add%=areg% AND &3FFFFC
+6890 IF bw%=0 mask%=-1 ELSE IF i%<3 mask%=&FF * 2^(8*i%) ELSE mask%=&FF000000
+6900 IF rw% PROCreadmem ELSE PROCwritemem
+6910 ENDPROC
+6920 
+6930 DEF PROCreadmem
+6940 LOCAL d%
+6950 IFareg%<65536 data%=RND AND NOT mask% OR mem%!add% AND mask%:ENDPROC
+6960 IF bw% d%=?areg%*&808080:data%=d%+d%+?areg% ELSE data%=!(areg% AND &FFFC)
+6970 ENDPROC
+6980 
+6990 DEF PROCwritemem
+7000 IFareg%<65536 mem%!add%=mem%!add% AND NOT mask% OR data% AND mask%:ENDPROC
+7010 IF bw% ?areg%=data% ELSE !(areg% AND &FFFC)=data%
+7020 ENDPROC
+7030 
+7040 DEF PROCmeminit
+7045 !mem%=&E3A010C0:mem%!4=&E3A02C0E:mem%!8=&E2811001:mem%!12=&E2422001:mem%!16=&EAFFFFFC:ENDPROC
+7050 INPUT"Object file : "A$
+7060 A%=OPENIN(A$):IFA%=0THENPRINT"!":GOTO7050
+7070 nmem%=EXT#A%DIV4:CLOSE#A%
+7080 IFnmem%>ram% PROCexit("Too Large !!!")
+7090 OSCLI("LOAD "+A$+" "+STR$~mem%)
+7100 ENDPROC
+7110 
+7120 DEF PROCtracecontrol
+7130 IF opc% ca%=areg%:cd%=data%:ooocd%=oocd%:oooca%=ooca%
+7140 IF newinst% oocd%=ocd%:ooca%=oca%
+7150 IF pipebl% OR newinst% ocd%=cd%:oca%=ca%
+7160 cycle%=cycle%+1:LOCAL x%,y%,c$:x%=POS:y%=VPOS
+7170 IF trace%=0 IF INKEY(-113)=0 AND ooca%<>bkpt% ENDPROC
+7180 IF trace%=2 IF newinst%=0 ENDPROC
+7190 REPEAT PROCtrace:*FX 21,0
+7200   PRINT TAB(40,5)"Instruction : "~ooocd% TAB(40,6)"    Address : "~oooca%
+7210   PRINT TAB(40,11)"(s,c,i,b,space,q)"
+7220   PRINT TAB(40,10)"Command :  ";:VDU8:c$=CHR$(GET OR &20):PRINTc$
+7230   IF c$="s" trace%=1
+7240   IF c$="c" trace%=0:PROCtrace
+7250   IF c$="i" trace%=2
+7260   IF c$="b" bkpt%=FNchange("Breakpt : ")
+7270   IF c$="q" PROCexit("Bye-bye !")
+7280 UNTIL c$="c" OR INKEY(-99)
+7290 VDU28,0,31,79,24:PRINTTAB(x%,y%);:ENDPROC
+7300 
+7310 DEF FNchange(a$)
+7320 PRINT TAB(40,13)SPC(30)
+7330 LOCAL b$:PRINT TAB(40,13)a$;:INPUT"&"b$
+7340 =EVAL("&0"+b$)
+7350 
+7360 DEF PROCtrace
+7370 VDU28,0,23,79,0:PRINT TAB(40,8)"Mode    : "trace$(trace%),SPC(9)
+7380 PRINTTAB(0,2),"Cycle :";cycle%'
+7390 LOCAL psr%:psr%=npsr%
+7400 FOR i%=0 TO 15:PRINT"R";i%;:IF i%<10 PRINT" "~reg%(i%):NEXT
+7410 FOR j%=0 TO 3
+7420   IF j%=0 OR i%<>FNreg(i%,j%) PRINT~reg%(FNreg(i%,j%));
+7430 NEXT:PRINT
+7440 NEXT
+7450 PRINT'"NZCVIF R B/W   Address      Data   R/W   Mreq    Opc  Trans   Seq"
+7460 PROCbout(psr%,31,26):PROCbout(psr%,1,0)
+7540 PRINT"   ";:PROCout(bw%)
+7550 PRINT~areg%~data%;
+7560 PRINT"     ";:PROCout(rw%):PRINT"      ";:PROCout(mreq%)
+7580 PRINT"      ";:PROCout(opc%):PRINT"      ";:PROCout(trans%)
+7600 PRINT"     ";:PROCout(seqout%)
+7610 ENDPROC
+7620 
+7630 DEF PROCexpand
+7640 FOR i%=1 TO totstep%
+7650 PRINT' MID$(inst$(i%),1,1)" "MID$(inst$(i%),2,1)" "MID$(inst$(i%),3,6)" "MID$(inst$(i%),9,2)" :";
+7660 FOR j%=1 TO ncont%:PRINT" ";:FOR k%=1 TO nbit%(j%)
+7670     PRINT;in%(i%,j%)DIV2^(nbit%(j%)-k%)MOD2;
+7680   NEXT:NEXT:NEXT:PRINT''
+7690 ENDPROC
+7700 
+7710 DEF PROCexit(n$)
+7720 VDU26:PRINTTAB(0,30)
+7730 IF LEN(n$)=0 PRINT"Exited at line"ERL;:REPORT ELSE PRINT n$
+7740 *FX229
+7741 END
+7750 
+8000 DEF PROCout(a%)
+8010 IF a% PRINT"1"; ELSE PRINT"0";
+8020 ENDPROC
+8030 
+8040 DEF PROCbout(a%,i%,j%)
+8050 LOCALk%:IF j%>i% k%=1 ELSE k%=-1
+8060 FOR i%=i% TO j% STEP k%
+8070 IF i%=31 PROCout(a%<0) ELSE PROCout(a% AND 2^i%)
+8080 NEXT:ENDPROC
